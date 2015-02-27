@@ -701,6 +701,7 @@ module Yast
         "list"     => {
           :startup_conf => :startup_conf,
           :global_conf  => :global_conf,
+          :lvm_conf     => :lvm_conf,
           :add          => "add",
           :edit         => "edit",
           :list         => "list",

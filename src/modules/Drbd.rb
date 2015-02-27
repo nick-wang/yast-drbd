@@ -47,6 +47,7 @@ module Yast
       @proposal_valid = false
       @modified = false
       @global_config = {}
+      @lvm_config = {}
       @resource_config = {}
       @drbd_dir = "/etc"
       @start_daemon = false
@@ -140,11 +141,13 @@ module Yast
         [
           _("Read global settings"),
           _("Read resources"),
+          _("Read LVM configurations"),
           _("Read daemon status")
         ],
         [
           _("Reading global settings..."),
           _("Reading resources..."),
+          _("Reading LVM configurations..."),
           _("Reading daemon status..."),
           _("Finished")
         ],
@@ -254,6 +257,26 @@ module Yast
         end
         if Ops.get(@global_config, "dialog-refresh") == nil
           Ops.set(@global_config, "dialog-refresh", "1")
+        end
+
+        #read LVM configs
+        #All of them under "devices" section
+        ["filter", "write_cache_state", "cache_dir"].each do |key|
+          val = Convert.to_string(
+            SCR.Read(Builtins.topath(Builtins.sformat(".drbd_lvm.value.devices.%1", key)))
+          )
+          Ops.set(@lvm_config, key, val)
+          Builtins.y2debug("drbd_lvm.devices.%1 is %2", key, val)
+        end
+
+        if Ops.get(@lvm_config, "filter") == nil
+          Ops.set(@lvm_config, "filter", "[ \"r|/dev/sda.*|\" ]")
+        end
+        if Ops.get(@lvm_config, "write_cache_state") == nil
+          Ops.set(@lvm_config, "write_cache_state", "0")
+        end
+        if Ops.get(@lvm_config, "cache_dir") == nil
+          Ops.set(@lvm_config, "cache_dir", "/etc/lvm/cache")
         end
 
         #read resources configs
@@ -501,11 +524,13 @@ module Yast
         [
           _("Write global settings"),
           _("Write resources"),
+          _("Write LVM configurations"),
           _("Set daemon status")
         ],
         [
           _("Writing global settings..."),
           _("Writing resources..."),
+          _("Writing LVM configurations..."),
           _("Setting daemon status..."),
           _("Finished")
         ],
@@ -537,6 +562,31 @@ module Yast
             Ops.get(@global_config, key)
           )
         end
+      end
+
+      #LVM config here
+      #http://docserv.suse.de/documents/SLE-HA11/SLE-ha-nfs-quick/html/
+      #art_ha_quick_nfs.html#sec_ha_quick_nfs_initial_lvm_config
+      Progress.NextStage
+      Builtins.y2debug(
+        "to write lvm config: lvm_config=%1",
+        @lvm_config
+      )
+      ["filter", "write_cache_state"].each do |key|
+        if Ops.get(@lvm_config, key) != nil
+          SCR.Write(
+            Builtins.topath(Builtins.sformat(".drbd_lvm.value.devices.%1", key)),
+            Ops.get(@lvm_config, key)
+          )
+        end
+      end
+
+      if Ops.get(@lvm_config, "write_cache_state") == "0"
+        SCR.Execute(
+          path(".target.bash_output"),
+          Builtins.sformat("/bin/rm -r %1/.cache >/dev/null 2>&1",
+          Ops.get(@lvm_config, "cache_dir"))
+        )
       end
 
       #resource config here
@@ -583,6 +633,7 @@ module Yast
     publish :variable => :proposal_valid, :type => "boolean"
     publish :variable => :modified, :type => "boolean"
     publish :variable => :global_config, :type => "map"
+    publish :variable => :lvm_config, :type => "map"
     publish :variable => :resource_config, :type => "map"
     publish :variable => :drbd_dir, :type => "string"
     publish :variable => :start_daemon, :type => "boolean"
