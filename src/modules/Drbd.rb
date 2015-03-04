@@ -40,6 +40,8 @@ module Yast
       Yast.import "Report"
       Yast.import "Summary"
       Yast.import "Service"
+      Yast.import "SuSEFirewall"
+      Yast.import "SuSEFirewallServices"
 
       Yast.import "Mode"
       Yast.import "PackageSystem"
@@ -137,18 +139,20 @@ module Yast
       Progress.New(
         caption,
         " ",
-        4,
+        5,
         [
           _("Read global settings"),
           _("Read resources"),
           _("Read LVM configurations"),
-          _("Read daemon status")
+          _("Read daemon status"),
+          _("Read SuSEFirewall Settings")
         ],
         [
           _("Reading global settings..."),
           _("Reading resources..."),
           _("Reading LVM configurations..."),
           _("Reading daemon status..."),
+          _("Read SuSEFirewall Settings"),
           _("Finished")
         ],
         ""
@@ -373,6 +377,12 @@ module Yast
 
       Progress.NextStage
 
+      # read the SuSEfirewall2
+      SuSEFirewall.Read
+
+      # Progress finished
+      Progress.NextStage
+
       Progress.Finish
       @modified = false
       true
@@ -520,18 +530,20 @@ module Yast
       Progress.New(
         caption,
         " ",
-        4,
+        5,
         [
           _("Write global settings"),
           _("Write resources"),
           _("Write LVM configurations"),
-          _("Set daemon status")
+          _("Set daemon status"),
+          _("Write the SuSEfirewall settings")
         ],
         [
           _("Writing global settings..."),
           _("Writing resources..."),
           _("Writing LVM configurations..."),
           _("Setting daemon status..."),
+          _("Writing the SuSEFirewall settings"),
           _("Finished")
         ],
         ""
@@ -626,6 +638,20 @@ module Yast
       end
       Progress.NextStage
 
+      # FIXME for real port
+      open_ports = ["9999"]
+
+      SuSEFirewallServices.SetNeededPortsAndProtocols(
+        "service:drbd",
+        # Use the same udp port for tcp.
+        { "tcp_ports" => open_ports,
+          "udp_ports" => open_ports }
+      )
+
+      SuSEFirewall.Write
+
+      # Progress finished
+      Progress.NextStage
       Progress.Finish
       true
     end
